@@ -1,0 +1,29 @@
+# 忽略 Bundler 本地配置
+/.bundle
+
+# 忽略本地环境变量文件，避免密码泄露
+/.env*
+
+# 忽略日志与临时文件
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# 忽略 PID 文件，保留目录结构
+/tmp/pids/*
+!/tmp/pids/
+!/tmp/pids/.keep
+
+# 忽略上传文件与本地存储
+/storage/*
+!/storage/.keep
+/tmp/storage/*
+!/tmp/storage/
+!/tmp/storage/.keep
+
+# 忽略 Rails 主密钥，禁止提交
+/config/master.key
+
+# macOS 系统文件
+.DS_Store
