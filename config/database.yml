@@ -1,0 +1,33 @@
+# MySQL 数据库配置
+# 说明：
+# 1. 本地 MySQL 端口为 3306，用户名默认为 root。
+# 2. 密码请通过环境变量 DB_PASSWORD 注入，或直接把 ENV 取值改成你的真实密码（注意不要提交到仓库）。
+# 3. 如需修改地址/端口，可通过 DB_HOST、DB_PORT 覆盖。
+default: &default
+  adapter: mysql2
+  encoding: utf8mb4
+  # 连接池大小：与 Puma 线程数保持一致，避免连接被耗尽
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("DB_USERNAME", "root") %>
+  # 密码由使用者自行填写：可直接写死，也可通过环境变量注入
+  password: <%= ENV.fetch("DB_PASSWORD", "") %>
+  host: <%= ENV.fetch("DB_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("DB_PORT", 3306) %>
+  # 统一使用 utf8mb4，支持 emoji 与繁体中文
+  collation: utf8mb4_unicode_ci
+
+development:
+  <<: *default
+  database: hk_beauty_contest_voting_development
+
+# 测试库会在执行测试时被自动重建，禁止与开发库同名
+test:
+  <<: *default
+  database: hk_beauty_contest_voting_test
+
+# 生产环境通过 DATABASE_URL 或独立环境变量提供连接信息
+production:
+  <<: *default
+  database: hk_beauty_contest_voting_production
+  username: <%= ENV.fetch("DB_USERNAME", "hk_beauty_contest_voting") %>
+  password: <%= ENV["HK_BEAUTY_CONTEST_VOTING_DATABASE_PASSWORD"] %>
