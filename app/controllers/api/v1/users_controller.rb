@@ -11,6 +11,8 @@ module Api
         attributes = user_params.to_h.symbolize_keys
         attributes[:username] = attributes[:username].to_s.strip
         attributes[:phone_number] = attributes[:phone_number].to_s.strip
+        # 验证码不是 User 的数据库字段，先取出并从属性中移除
+        verification_code = attributes.delete(:verification_code).to_s.strip
 
         # 手机号格式校验：与 User 模型保持同一套正则
         unless attributes[:phone_number].match?(User::PHONE_NUMBER_REGEX)
@@ -28,9 +30,19 @@ module Api
           return render json: { error: "两次输入的密码不一致" }, status: :unprocessable_entity
         end
 
+        # 手机号验证：必须是该手机号最新、未使用、未过期且未超错误次数的验证码
+        verification = VerificationCode.verify!(
+          phone_number: attributes[:phone_number],
+          code: verification_code,
+          purpose: VerificationCode::PURPOSE_REGISTER
+        )
+
         user = User.new(attributes)
 
         if user.save
+          # 注册成功后再消费验证码，避免用户信息校验失败时验证码被白白作废
+          verification.consume!
+
           render json: {
             message: "注册成功",
             data: user_json(user)
@@ -39,6 +51,9 @@ module Api
           # 只取错误文案，去掉 Rails 默认拼接的英文属性名前缀
           render json: { error: user.errors.map(&:message).first }, status: :unprocessable_entity
         end
+      rescue VerificationCode::VerificationError => e
+        # 验证码不存在、过期、已使用或错误次数过多
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       private
@@ -48,7 +63,7 @@ module Api
       # 2. { "username": "...", ... }
       def user_params
         source = params[:user].present? ? params.require(:user) : params
-        source.permit(:username, :phone_number, :password, :password_confirmation)
+        source.permit(:username, :phone_number, :password, :password_confirmation, :verification_code)
       end
 
       # 只暴露必要字段，绝不返回 password_digest

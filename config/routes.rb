@@ -5,6 +5,9 @@ Rails.application.routes.draw do
   # API 路由统一使用 api/v1 命名空间，方便后续版本迭代
   namespace :api do
     namespace :v1 do
+      # 手机号注册验证码
+      resources :verification_codes, only: [:create]
+
       # 用户注册
       resources :users, only: [:create]
 
