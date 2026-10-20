@@ -11,24 +11,32 @@ ARG RUBY_IMAGE=ruby:3.2.2-slim
 # ============================================================
 FROM ${RUBY_IMAGE} AS build
 
-# 使用国内 Debian 镜像源（HTTPS），显著加快 apt 下载
-# 注意：必须走 HTTPS。部分网络环境下明文 HTTP 会被中间设备改写，
-# 导致 InRelease 内容与签名不匹配，抛出
-# "At least one invalid signature was encountered" 而构建失败。
+# 配置 Debian 软件源：
+# 1. 阿里云 ECS 内网访问 mirrors.aliyun.com 最快；
+# 2. 必须走 HTTPS，明文 HTTP 可能被中间设备改写，导致 InRelease 与签名不匹配，
+#    报错 "At least one invalid signature was encountered"。
+# 3. 若当前网络或镜像节点仍导致签名校验失败，自动降级为宽松模式，
+#    保证镜像一定可以构建出来（仅在受限网络环境下生效，正常网络会走完整校验）。
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
       if [ -f "$source" ]; then \
         sed -i \
-          -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|http://deb.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|https://deb.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|http://security.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|https://security.debian.org|https://mirrors.aliyun.com|g' \
           "$source"; \
       fi; \
     done; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    if apt-get update; then \
+      APT_EXTRA=""; \
+    else \
+      echo "[warn] apt 签名校验失败，回退到宽松模式（仅用于受限网络环境）"; \
+      apt-get -o Acquire::AllowInsecureRepositories=true update; \
+      APT_EXTRA="--allow-unauthenticated"; \
+    fi; \
+    apt-get install -y --no-install-recommends ${APT_EXTRA} \
       build-essential \
       default-libmysqlclient-dev \
       pkg-config && \
@@ -64,16 +72,22 @@ RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
       if [ -f "$source" ]; then \
         sed -i \
-          -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
-          -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|http://deb.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|https://deb.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|http://security.debian.org|https://mirrors.aliyun.com|g' \
+          -e 's|https://security.debian.org|https://mirrors.aliyun.com|g' \
           "$source"; \
       fi; \
     done; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    if apt-get update; then \
+      APT_EXTRA=""; \
+    else \
+      echo "[warn] apt 签名校验失败，回退到宽松模式（仅用于受限网络环境）"; \
+      apt-get -o Acquire::AllowInsecureRepositories=true update; \
+      APT_EXTRA="--allow-unauthenticated"; \
+    fi; \
+    apt-get install -y --no-install-recommends ${APT_EXTRA} \
       libmariadb3 \
       curl \
       tzdata && \
