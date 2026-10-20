@@ -1,3 +1,8 @@
+---
+name: rails-model-conventions
+description: "Active Record 模型编写规范与自检清单。新增或修改模型、关联、校验、领域方法或敏感字段处理时使用，确保遵循 Rails 约定优于配置。"
+---
+
 # Active Record 模型设计规范与自检清单
 
 > 本文件记录本项目模型层的编写约定：新增或修改模型时按此执行，保证关联、校验与敏感字段处理保持一致。
