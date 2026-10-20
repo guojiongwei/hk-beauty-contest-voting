@@ -1,6 +1,9 @@
 module Api
   module V1
     class SessionsController < BaseController
+      # 关闭参数自动包装，保证 password 等非模型字段不会被包装层丢掉
+      wrap_parameters false
+
       # 登录与登出都不需要携带有效 Token：
       # 登录时用户还没有 Token；登出时即使 Token 过期也应允许前端正常退出
       skip_before_action :authenticate_user!, only: [:create, :destroy]
