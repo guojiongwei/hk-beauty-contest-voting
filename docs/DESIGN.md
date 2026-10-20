@@ -4,12 +4,13 @@
 
 为“香港选美大赛投票系统”提供后端 API，覆盖：
 
+- 手机号验证码发送（注册前置校验）
 - 用户注册、登录、登出
-- 候选人列表与详情
+- 候选人列表（分页）与详情
 - 登录用户投票
 - 统一的 JSON 错误响应
 
-不在本期范围：候选人后台管理、图片上传、短信验证码、投票结果统计报表。
+不在本期范围：候选人后台管理、图片上传、投票结果统计报表。
 
 ## 2. 技术选型
 
@@ -63,7 +64,68 @@ add_index :votes, [:user_id, :candidate_id], unique: true
 1. 业务约束：同一用户对同一候选人只能投一票；
 2. 查询优化：按用户查已投候选人时可以直接命中索引。
 
+### verification_codes
+
+注册要求“手机号验证”，因此单独设计验证码表，而不是把验证码塞进 `users` 表。原因：
+
+- 用户可能多次获取验证码，历史记录需要保留用于限流与审计；
+- 未注册成功的手机号没有 `users` 记录，验证码无处存放；
+- 验证码是短生命周期数据，独立成表便于按 `expires_at` 批量清理。
+
+| 字段 | 类型 | NULL | 说明 |
+| --- | --- | --- | --- |
+| id | bigint | 否 | 主键 |
+| phone_number | varchar(20) | 否 | 接收验证码的手机号，兼容国际号码长度 |
+| code_digest | varchar(100) | 否 | bcrypt 摘要，禁止明文落库 |
+| purpose | varchar(20) | 否 | 用途，默认 `register`，为登录、找回密码预留 |
+| expires_at | datetime | 否 | 过期时间，签发时写入，默认 5 分钟 |
+| used_at | datetime | 是 | 为空表示未使用，非空表示已被消费 |
+| attempts | int | 否 | 错误次数，默认 0，达到 5 次后作废 |
+| created_at / updated_at | datetime | 否 | 自动维护，`created_at` 同时用于 60 秒限流判断 |
+
+索引：
+
+```ruby
+add_index :verification_codes,
+          [:phone_number, :purpose, :created_at],
+          name: "index_verification_codes_on_phone_purpose_created"
+add_index :verification_codes, :expires_at
+```
+
+- `(phone_number, purpose, created_at)`：`verify!` 与 `issue!` 都是“取该手机号该用途的最新一条”，该索引让 `ORDER BY created_at DESC LIMIT 1` 直接走索引，避免全表扫描；
+- `expires_at`：供定时任务删除过期记录，避免验证码表无限膨胀；
+- 不给 `phone_number` 单独建唯一索引：同一手机号必然存在多条历史记录，唯一约束会直接冲突。
+
+### 列类型与 NULL 的取舍
+
+- 主键统一 `bigint`，为长期增长留出空间；
+- 手机号、用户名使用 `varchar` 而非整数：手机号可能带前导 0 或国家码，且不参与算术运算；
+- 密码、验证码摘要使用 `varchar(100)`：bcrypt 输出固定 60 字符，留出算法升级余量；
+- 简介使用 `text`：长度不可预估，避免 `varchar` 上限截断；
+- `description`、`photo_url` 允许 NULL：运营可能先建候选人、后补资料，用 NULL 表示“尚未填写”，与空字符串区分；
+- `used_at` 允许 NULL：NULL 本身就是“未使用”的语义，比额外的布尔字段更省空间且不会出现两个字段互相矛盾；
+- 其余业务字段一律 `NOT NULL` + 默认值，把“数据必须完整”的约束交给数据库，而不是只靠应用层。
+
 ## 4. 认证设计
+
+### 注册与手机号验证流程
+
+1. 前端调用 `POST /api/v1/verification_codes` 提交手机号；
+2. 后端校验手机号格式，生成 6 位数字验证码，用 bcrypt 摘要写入 `code_digest`，同时写入 `expires_at`；
+3. 生产环境通过短信服务商下发明文验证码，明文只在本次请求内存中存在，不落库；
+4. 前端调用 `POST /api/v1/users`，携带手机号、验证码、用户名与密码；
+5. 后端取该手机号“最新一条”验证码，依次校验：是否存在 → 是否已使用 → 是否过期 → 错误次数是否超限 → 摘要是否匹配；
+6. 匹配失败时 `attempts + 1` 并返回 422；匹配成功后创建用户，创建成功才把 `used_at` 置为当前时间，验证码一次性失效。
+
+限流与防暴力枚举：
+
+| 规则 | 实现 | 目的 |
+| --- | --- | --- |
+| 60 秒内不可重复发送 | `issue!` 比较最新记录的 `created_at` | 防止短信轰炸与费用放大 |
+| 5 分钟过期 | `expires_at = 5.minutes.from_now` | 缩短验证码可用窗口 |
+| 最多错 5 次 | `attempts` 达到 `MAX_ATTEMPTS` 后直接拒绝 | 6 位数字只有 100 万种组合，必须限制尝试次数 |
+| 一次性消费 | 注册成功后写 `used_at` | 防止同一验证码重复注册 |
+| 先建用户后消费 | `user.save` 成功才 `consume!` | 用户信息校验失败时不浪费验证码 |
 
 ### 登录流程
 
@@ -121,11 +183,25 @@ candidate.has_voted = voted_ids.include?(candidate.id)
 
 `include?` 在内存数组中完成，不再访问数据库。
 
+### 分页设计
+
+候选人数量会随赛事增长，列表接口必须分页，否则一次请求可能返回全部候选人并拖慢响应。
+
+- 参数：`page`（默认 1）、`per_page`（默认 10，上限 50）；
+- 实现：`limit(per_page).offset((page - 1) * per_page)`，并按 `id ASC` 排序保证翻页顺序稳定；
+- `per_page` 强制夹在 `1..50`：既防止 0 或负数导致 SQL 异常，也防止前端传入过大的值造成慢查询；
+- 响应附带 `meta`：`current_page`、`per_page`、`total_count`、`total_pages`、`has_next`、`has_prev`，前端无需自行推算；
+- 页码超出总页数时返回空数组而不是 404，符合列表接口的常见语义。
+
+候选人总量在千级以内时，`limit + offset` 足够；如果后续增长到十万级，可改为基于 `id` 的游标分页（`WHERE id > last_id LIMIT n`），避免深分页的偏移扫描成本。
+
 ### 索引使用
 
 - `votes.user_id` 索引：支持 `current_user.votes` 快速过滤；
 - `votes.(user_id, candidate_id)` 唯一索引：支持已投 ID 查询与重复投票拦截；
-- `users.username`、`users.phone_number` 唯一索引：支持登录查询与唯一性约束。
+- `users.username`、`users.phone_number` 唯一索引：支持登录查询与唯一性约束；
+- `verification_codes.(phone_number, purpose, created_at)` 联合索引：支持“取最新验证码”与 60 秒限流判断；
+- `verification_codes.expires_at` 索引：支持过期数据清理。
 
 ## 7. 异常与错误码
 
@@ -143,7 +219,8 @@ candidate.has_voted = voted_ids.include?(candidate.id)
 
 - `rescue_from` 后注册的处理器优先级更高，因此 `StandardError` 最先注册、最后匹配；
 - 500 响应不暴露堆栈，完整异常写入 Rails 日志；
-- 投票接口在控制器内单独捕获 `RecordNotUnique`，返回业务文案“您已经投过票了”。
+- 投票接口在控制器内单独捕获 `RecordNotUnique`，返回业务文案“您已经投过票了”；
+- 验证码相关错误由 `VerificationCode::VerificationError` 承载：发送过于频繁返回 429，其余校验失败返回 422。
 
 ## 8. 安全设计
 
@@ -152,12 +229,15 @@ candidate.has_voted = voted_ids.include?(candidate.id)
 3. JWT 校验签名与过期时间，防止伪造与重放（过期后失效）；
 4. Strong Parameters 白名单，避免批量赋值；
 5. 投票人身份取自 Token，不信任客户端传入的 `user_id`；
-6. 手机号、用户名在数据库层唯一，防止重复注册。
+6. 手机号、用户名在数据库层唯一，防止重复注册；
+7. 验证码只存 bcrypt 摘要，接口响应默认不回显明文（仅开发环境返回 `debug_code` 便于联调）；
+8. 验证码 5 分钟过期、60 秒发送间隔、最多错 5 次、一次性消费，限制短信轰炸与暴力枚举。
 
 ## 9. 后续可扩展方向
 
-- 增加短信验证码，降低手机号被冒用风险；
-- 引入 Redis 做登录限流与投票频控；
-- 候选人列表增加分页与缓存；
+- 验证码表按月归档，并增加定时任务清理过期记录；
+- 引入 Redis 做登录限流与投票频控，并缓存候选人列表；
+- 接入真实短信服务商，并增加图形验证码或人机校验作为发送前置条件；
 - 投票结果统计接口使用计数器缓存或异步汇总，避免实时聚合压力；
-- 如需强制单设备登录，可引入 Token 版本号或黑名单机制。
+- 如需强制单设备登录，可引入 Token 版本号或黑名单机制；
+- 数据量增长后把候选人列表改为游标分页。

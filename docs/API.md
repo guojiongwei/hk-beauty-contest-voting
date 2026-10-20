@@ -13,11 +13,66 @@
 | 401 | 未登录或 Token 失效 | `{ "error": "请先登录或登录状态已过期" }` |
 | 404 | 资源不存在 | `{ "error": "资源不存在" }` |
 | 422 | 参数校验失败 | `{ "error": "手机号格式不正确" }` |
+| 429 | 请求过于频繁 | `{ "error": "验证码发送过于频繁，请稍后再试" }` |
 | 500 | 服务端异常 | `{ "error": "服务器内部错误，请稍后重试" }` |
 
 ---
 
-## 1. 注册用户
+## 1. 发送手机验证码
+
+用于注册前验证手机号归属，验证码 5 分钟内有效，同一手机号 60 秒内只能发送一次。
+
+### URL
+POST /api/v1/verification_codes
+
+### 认证
+不需要
+
+### Request 示例
+```json
+{
+  "phone_number": "13800138000"
+}
+```
+
+### Response 示例
+
+成功（201）：
+```json
+{
+  "message": "验证码已发送",
+  "data": {
+    "phone_number": "13800138000",
+    "expires_in": 300,
+    "debug_code": "063443"
+  }
+}
+```
+
+> `debug_code` 仅在 `development` 环境返回，便于本地联调；生产环境通过短信服务商发送，不会返回验证码。
+
+失败（422，手机号格式不正确）：
+```json
+{
+  "error": "手机号格式不正确"
+}
+```
+
+失败（429，发送过于频繁）：
+```json
+{
+  "error": "验证码发送过于频繁，请稍后再试"
+}
+```
+
+### 说明
+- 手机号规则：1 开头、第二位 3-9、共 11 位数字。
+- 验证码为 6 位数字，使用 bcrypt 摘要存储，数据库中不保存明文。
+- 验证码 5 分钟过期，最多允许输错 5 次，使用后立即失效。
+
+---
+
+## 2. 注册用户
 
 ### URL
 POST /api/v1/users
@@ -31,11 +86,12 @@ POST /api/v1/users
   "username": "alice",
   "phone_number": "13800138000",
   "password": "123456",
-  "password_confirmation": "123456"
+  "password_confirmation": "123456",
+  "verification_code": "063443"
 }
 ```
 
-> 同时兼容嵌套写法：`{ "user": { "username": "alice", "phone_number": "13800138000", "password": "123456" } }`
+> 同时兼容嵌套写法：`{ "user": { "username": "alice", "phone_number": "13800138000", "password": "123456", "verification_code": "063443" } }`
 
 ### Response 示例
 
@@ -56,6 +112,34 @@ POST /api/v1/users
 ```json
 {
   "error": "手机号格式不正确"
+}
+```
+
+失败（422，未获取验证码）：
+```json
+{
+  "error": "请先获取验证码"
+}
+```
+
+失败（422，验证码错误）：
+```json
+{
+  "error": "验证码错误"
+}
+```
+
+失败（422，验证码已使用或过期）：
+```json
+{
+  "error": "验证码已使用或已过期，请重新获取"
+}
+```
+
+失败（422，验证码错误次数过多）：
+```json
+{
+  "error": "验证码错误次数过多，请重新获取"
 }
 ```
 
@@ -88,13 +172,14 @@ POST /api/v1/users
 ```
 
 ### 说明
-- 手机号规则：1 开头、第二位 3-9、共 11 位数字。
+- 注册必须携带该手机号最新、未使用、未过期且未超过错误次数的验证码。
 - 用户名、手机号均有数据库唯一索引，重复注册会被拒绝。
+- 验证码在用户创建成功后才标记为已使用，注册失败不会白白作废验证码。
 - 响应中不会返回 `password_digest`。
 
 ---
 
-## 2. 登录
+## 3. 登录
 
 ### URL
 POST /api/v1/sessions
@@ -155,7 +240,7 @@ POST /api/v1/sessions
 
 ---
 
-## 3. 登出
+## 4. 登出
 
 ### URL
 DELETE /api/v1/sessions/current
@@ -184,7 +269,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 
 ---
 
-## 4. 获取候选人列表
+## 5. 获取候选人列表（分页）
 
 ### URL
 GET /api/v1/candidates
@@ -192,8 +277,17 @@ GET /api/v1/candidates
 ### 认证
 需要，请求头：`Authorization: Bearer <token>`
 
+### Query 参数
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| page | integer | 否 | 1 | 页码，小于 1 时按 1 处理 |
+| per_page | integer | 否 | 10 | 每页条数，最大 50 |
+
 ### Request 示例
-无请求体。
+```
+GET /api/v1/candidates?page=2&per_page=5
+```
 
 ### Response 示例
 
@@ -202,22 +296,30 @@ GET /api/v1/candidates
 {
   "data": [
     {
-      "id": 1,
-      "name": "陈晓华",
-      "description": "2026 年度香港小姐候选人",
-      "photo_url": "https://example.com/candidates/1.jpg",
-      "has_voted": true,
+      "id": 6,
+      "name": "候选人6",
+      "description": "候选人简介 6",
+      "photo_url": "https://example.com/candidates/6.jpg",
+      "has_voted": false,
       "created_at": "2026-10-20T11:00:00.000Z"
     },
     {
-      "id": 2,
-      "name": "李芷晴",
-      "description": "热爱公益与舞台表演",
-      "photo_url": "https://example.com/candidates/2.jpg",
-      "has_voted": false,
+      "id": 7,
+      "name": "候选人7",
+      "description": "候选人简介 7",
+      "photo_url": "https://example.com/candidates/7.jpg",
+      "has_voted": true,
       "created_at": "2026-10-20T11:01:00.000Z"
     }
-  ]
+  ],
+  "meta": {
+    "current_page": 2,
+    "per_page": 5,
+    "total_count": 12,
+    "total_pages": 3,
+    "has_next": true,
+    "has_prev": true
+  }
 }
 ```
 
@@ -230,11 +332,13 @@ GET /api/v1/candidates
 
 ### 说明
 - `has_voted` 表示当前登录用户是否已给该候选人投过票。
+- 分页使用 `limit + offset`，按主键升序排序，保证翻页结果稳定。
 - 实现上先用 `current_user.votes.pluck(:candidate_id)` 一次性取出已投 ID，再在内存中判断，避免 N+1 查询。
+- `total_count` 只统计总数，不加载全部候选人。
 
 ---
 
-## 5. 获取单个候选人
+## 6. 获取单个候选人
 
 ### URL
 GET /api/v1/candidates/:id
@@ -283,7 +387,7 @@ GET /api/v1/candidates/1
 
 ---
 
-## 6. 投票
+## 7. 投票
 
 ### URL
 POST /api/v1/votes

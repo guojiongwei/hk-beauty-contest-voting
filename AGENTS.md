@@ -26,6 +26,8 @@
 
 ```
 app/controllers/application_controller.rb     # 全局异常处理
+app/controllers/api/v1/verification_codes_controller.rb # 注册验证码发送
+app/models/verification_code.rb               # 验证码生成、限流与校验
 app/controllers/api/v1/base_controller.rb     # JWT 认证基类
 app/controllers/api/v1/*.rb                   # 业务控制器
 app/models/*.rb                               # 模型与校验
@@ -58,6 +60,7 @@ docs/DESIGN.md                                # 设计思路
   - `401` 未登录或 Token 失效
   - `404` 资源不存在
   - `422` 参数校验失败或重复投票
+  - `429` 验证码发送过于频繁
   - `500` 服务端异常
 
 ## 6. Git 提交规范
