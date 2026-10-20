@@ -12,7 +12,8 @@
   var API_BASE = "/api/v1";
   var TOKEN_KEY = "hk_beauty_token";
   var USER_KEY = "hk_beauty_user";
-  var PER_PAGE = 6;
+  // 每页 4 位候选人：桌面端正好一行排满，避免出现第二行导致页面纵向滚动
+  var PER_PAGE = 4;
 
   // 页面状态集中管理，避免散落的全局变量
   var state = {

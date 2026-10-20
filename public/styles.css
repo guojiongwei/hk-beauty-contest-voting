@@ -71,7 +71,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px clamp(20px, 5vw, 56px);
+  padding: 16px clamp(20px, 5vw, 56px);
   background: rgba(255, 255, 255, 0.78);
   border-bottom: 1px solid rgba(102, 82, 140, 0.12);
   backdrop-filter: blur(18px);
@@ -216,20 +216,20 @@ body {
 .main {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 46px 0 80px;
+  /* 相比原来收紧纵向留白，给首屏腾出空间 */
+  padding: 20px 0 28px;
 }
 
 .auth-view {
   display: flex;
   justify-content: center;
-  padding: clamp(10px, 3vw, 40px) 0;
 }
 
 .auth-card {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   width: min(1000px, 100%);
-  min-height: 580px;
+  /* 高度完全由内容决定，小屏不会平白多出一截空白 */
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -242,8 +242,9 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 22px;
-  padding: clamp(30px, 5vw, 56px);
+  gap: 18px;
+  /* 内边距略收紧，注册表单较高时更容易在一屏内放下 */
+  padding: clamp(24px, 3vw, 40px);
   /* 左侧品牌区以 #D7CAE6 为主色做柔和渐变 */
   background:
     radial-gradient(520px 360px at 85% 8%, rgba(255, 255, 255, 0.85), transparent 65%),
@@ -318,8 +319,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 24px;
-  padding: clamp(30px, 5vw, 54px);
+  gap: 18px;
+  padding: clamp(24px, 3vw, 40px);
   background: rgba(255, 255, 255, 0.55);
 }
 
@@ -355,20 +356,20 @@ body {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   font-size: 13px;
   color: var(--muted);
 }
 
 .field input {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -420,14 +421,14 @@ body {
 /* ------------------------------ 候选人列表 ------------------------------ */
 
 .hero {
-  padding: 18px 0 34px;
+  padding: 10px 0 20px;
   border-bottom: 1px solid rgba(102, 82, 140, 0.12);
 }
 
 .hero h1 {
-  margin: 10px 0 12px;
+  margin: 8px 0 10px;
   font-family: var(--font-serif);
-  font-size: clamp(32px, 4.4vw, 52px);
+  font-size: clamp(30px, 4vw, 44px);
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -443,7 +444,7 @@ body {
   align-items: flex-end;
   justify-content: space-between;
   gap: 18px;
-  padding: 30px 0 22px;
+  padding: 16px 0 12px;
 }
 
 .toolbar h2 {
@@ -460,9 +461,10 @@ body {
 }
 
 .candidate-grid {
+  /* 桌面端固定 4 列：与分页的 per_page=4 对应，一页正好一行，不产生第二行滚动 */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .candidate-card {
@@ -484,7 +486,8 @@ body {
 
 .candidate-photo {
   position: relative;
-  aspect-ratio: 3 / 4;
+  /* 固定照片高度：四列一行时整页高度稳定，常见笔记本屏幕可一屏看全 */
+  height: 220px;
   overflow: hidden;
   background:
     radial-gradient(420px 280px at 50% 0%, rgba(255, 255, 255, 0.75), transparent 70%),
@@ -505,21 +508,21 @@ body {
   place-items: center;
   color: rgba(111, 88, 165, 0.55);
   font-family: var(--font-serif);
-  font-size: 54px;
+  font-size: 46px;
 }
 
 .candidate-body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px;
+  gap: 8px;
+  padding: 14px 16px;
 }
 
 .candidate-body h3 {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 500;
 }
 
@@ -587,7 +590,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 38px;
+  margin-top: 20px;
 }
 
 .page-btn {
@@ -772,10 +775,21 @@ body {
 
 /* ------------------------------ 响应式 ------------------------------ */
 
+/* 平板与窄桌面：候选人改为两列，登录卡片上下堆叠 */
+@media (max-width: 1024px) {
+  .candidate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
+  .auth-view {
+    /* 堆叠布局下高度由内容决定，避免被父容器压扁 */
+    align-items: flex-start;
+  }
+
   .auth-card {
     grid-template-columns: 1fr;
-    min-height: 0;
   }
 
   .auth-aside {
@@ -814,7 +828,7 @@ body {
 @media (max-width: 560px) {
   .main {
     width: calc(100% - 32px);
-    padding-top: 26px;
+    padding-top: 14px;
   }
 
   .brand-text strong {
@@ -835,8 +849,14 @@ body {
   }
 
   .candidate-grid {
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    /* 手机端单列展示，卡片高度交给视口比例控制 */
+    grid-template-columns: 1fr;
     gap: 16px;
+  }
+
+  .candidate-photo {
+    /* 单列时卡片更宽，照片相应加高，避免画面被压扁 */
+    height: 260px;
   }
 
   .code-row {
