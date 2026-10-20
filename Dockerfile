@@ -11,14 +11,23 @@ ARG RUBY_IMAGE=ruby:3.2.2-slim
 # ============================================================
 FROM ${RUBY_IMAGE} AS build
 
-# 使用国内 Debian 镜像源（阿里云），显著加快 apt 下载
+# 使用国内 Debian 镜像源（HTTPS），显著加快 apt 下载
+# 注意：必须走 HTTPS。部分网络环境下明文 HTTP 会被中间设备改写，
+# 导致 InRelease 内容与签名不匹配，抛出
+# "At least one invalid signature was encountered" 而构建失败。
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
       if [ -f "$source" ]; then \
-        sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' "$source"; \
+        sed -i \
+          -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          "$source"; \
       fi; \
     done; \
-    apt-get update -qq && \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
       build-essential \
       default-libmysqlclient-dev \
@@ -54,10 +63,16 @@ FROM ${RUBY_IMAGE}
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
       if [ -f "$source" ]; then \
-        sed -i 's|deb.debian.org|mirrors.aliyun.com|g; s|security.debian.org|mirrors.aliyun.com|g' "$source"; \
+        sed -i \
+          -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+          "$source"; \
       fi; \
     done; \
-    apt-get update -qq && \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
       libmariadb3 \
       curl \
