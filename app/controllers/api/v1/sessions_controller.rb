@@ -26,7 +26,16 @@ module Api
 
         # authenticate 由 has_secure_password 提供，内部使用 bcrypt 比对密码
         if user&.authenticate(password)
-          token = encode_token(user_id: user.id)
+          # 每条 Token 生成独立的 jti，写入 payload 也作为 Redis 白名单的键
+          jti = SecureRandom.uuid
+          token = JsonWebToken.encode({ user_id: user.id, jti: jti })
+
+          # 白名单与 Token 同寿命：过期后由 Redis 自动删除，无需额外清理任务
+          TokenStore.store(
+            jti: jti,
+            user_id: user.id,
+            ttl: JsonWebToken::EXPIRATION.to_i
+          )
 
           render json: {
             message: "登录成功",
@@ -39,8 +48,16 @@ module Api
         end
       end
 
-      # 登出：JWT 无状态，后端不保存 Token，直接返回成功由前端清除本地 Token
+      # 登出：从 Redis 白名单删除当前 Token 的 jti，使该 Token 立即失效
+      # 只撤销当前这一条 Token，同一账号在其他设备上的登录状态不受影响
       def destroy
+        payload = request.env["jwt_payload"]
+
+        if payload.present? && payload["jti"].present?
+          TokenStore.revoke(payload["jti"])
+        end
+
+        # 即使 Token 已过期或已失效，也固定返回成功，保证前端退出流程不被阻塞
         render json: { message: "登出成功" }, status: :ok
       end
 

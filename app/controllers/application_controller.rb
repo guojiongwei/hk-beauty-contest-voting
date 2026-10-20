@@ -6,6 +6,8 @@ class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
   rescue_from ActiveRecord::RecordNotUnique, with: :render_record_not_unique
   rescue_from ActionController::ParameterMissing, with: :render_parameter_missing
+  # Redis 不可用时统一返回 503，避免登录等写操作直接抛 500
+  rescue_from Redis::BaseError, with: :render_auth_service_unavailable
 
   private
 
@@ -28,6 +30,14 @@ class ApplicationController < ActionController::API
   # 400：缺少必要参数
   def render_parameter_missing(exception)
     render json: { error: "缺少必要参数：#{exception.param}" }, status: :bad_request
+  end
+
+  # 503：Redis 不可用（登录写白名单、登出撤销 Token 时可能触发）
+  # 与 401 区分开，前端可以据此提示“服务暂不可用”而不是“请重新登录”
+  def render_auth_service_unavailable(exception)
+    Rails.logger.error("[503] Redis 异常：#{exception.class}: #{exception.message}")
+
+    render json: { error: "认证服务暂不可用，请稍后重试" }, status: :service_unavailable
   end
 
   # 500：未知异常统一兜底，日志中保留完整堆栈便于排查，响应中不暴露内部细节
