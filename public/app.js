@@ -372,7 +372,18 @@
           verification_code: code
         }
       });
+    } catch (error) {
+      // 这一层失败才是真正的注册失败：账号未创建，验证码仍可继续使用
+      toast(error.message, "error");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "注册并登录";
+      return;
+    }
 
+    // 走到这里说明账号已经创建成功、验证码也已被消费，
+    // 后面的自动登录失败不能再提示"注册失败"，
+    // 否则用户重新注册只会得到"用户名已被占用"。
+    try {
       // 注册成功后直接登录，减少一次手动操作
       var loginResult = await request("/sessions", {
         method: "POST",
@@ -384,7 +395,12 @@
       enterApp();
       toast("注册成功，已自动登录", "success");
     } catch (error) {
-      toast(error.message, "error");
+      // 自动登录失败（例如 Redis 不可用返回 503）时降级为手动登录，
+      // 账号本身已经可用，这里只把用户引到登录页并回填账号密码
+      switchTab("login");
+      $("login-account").value = phone;
+      $("login-password").value = password;
+      toast("注册成功，请手动登录：" + error.message, "error");
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "注册并登录";
