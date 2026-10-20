@@ -223,6 +223,9 @@ body {
 .auth-view {
   display: flex;
   justify-content: center;
+  /* 减去顶部导航与上下内边距，让登录卡片在首屏垂直居中，不再贴着导航 */
+  align-items: center;
+  min-height: calc(100vh - 150px);
 }
 
 .auth-card {
