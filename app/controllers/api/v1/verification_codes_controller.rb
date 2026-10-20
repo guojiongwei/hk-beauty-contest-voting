@@ -24,8 +24,11 @@ module Api
           phone_number: phone_number,
           expires_in: VerificationCode::EXPIRES_IN.to_i
         }
-        # 仅开发环境返回明文验证码，方便本地联调；生产环境绝不返回
-        data[:debug_code] = verification_code.plain_code if Rails.env.development?
+        # 开发环境或显式开启 SMS_DEBUG_MODE 时返回明文验证码，方便本地与演示环境联调；
+        # 生产环境默认关闭，验证码只通过短信服务商下发。
+        if Rails.env.development? || ENV["SMS_DEBUG_MODE"] == "true"
+          data[:debug_code] = verification_code.plain_code
+        end
 
         render json: { message: "验证码已发送", data: data }, status: :created
       rescue VerificationCode::VerificationError => e

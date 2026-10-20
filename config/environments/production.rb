@@ -38,8 +38,13 @@ Rails.application.configure do
   # Can be used together with config.force_ssl for Strict-Transport-Security and secure cookies.
   # config.assume_ssl = true
 
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  # 由应用自身托管 public 下的静态页面与资源，容器部署时无需额外 Nginx
+  config.public_file_server.enabled = ENV.fetch("RAILS_SERVE_STATIC_FILES", "true") == "true"
+
+  # 是否强制跳转 HTTPS：
+  # 容器内直接以 HTTP 提供服务时保持 false；由 Nginx / 负载均衡终止 SSL 后
+  # 再把 FORCE_SSL 设为 true，即可启用 HSTS 与安全 Cookie。
+  config.force_ssl = ENV["FORCE_SSL"] == "true"
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new(STDOUT)

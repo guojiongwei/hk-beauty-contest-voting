@@ -1,0 +1,38 @@
+#!/bin/bash
+# Docker 启动入口
+# 职责：
+# 1. 未显式提供 SECRET_KEY_BASE / JWT_SECRET 时自动生成，保证容器可直接启动；
+# 2. 启动 Web 服务前执行数据库准备（建库 + 迁移），并对外部数据库做有限重试。
+
+set -e
+
+# 自动生成缺失的密钥：仅适合演示环境；正式环境请在 .env 中固定，避免重启后 Token 全部失效
+if [ -z "${SECRET_KEY_BASE:-}" ]; then
+  export SECRET_KEY_BASE="$(ruby -rsecurerandom -e 'puts SecureRandom.hex(64)')"
+  echo "[entrypoint] 未提供 SECRET_KEY_BASE，已生成临时值；重启后会变化，请在 .env 中固定。"
+fi
+
+if [ -z "${JWT_SECRET:-}" ]; then
+  export JWT_SECRET="$(ruby -rsecurerandom -e 'puts SecureRandom.hex(64)')"
+  echo "[entrypoint] 未提供 JWT_SECRET，已生成临时值；重启后会变化，请在 .env 中固定。"
+fi
+
+# 只在启动 Web 服务时做数据库准备，执行其他命令（如 rails console）不触发迁移
+if [ "${1}" = "./bin/rails" ] && [ "${2}" = "server" ]; then
+  echo "[entrypoint] 正在检查并迁移数据库..."
+  attempts=0
+
+  until ./bin/rails db:prepare; do
+    attempts=$((attempts + 1))
+    if [ "${attempts}" -ge 10 ]; then
+      echo "[entrypoint] 数据库初始化失败，请检查 DB_HOST、DB_PORT、DB_USERNAME 与密码是否正确。" >&2
+      exit 1
+    fi
+    echo "[entrypoint] 数据库暂不可用，2 秒后重试（${attempts}/10）..."
+    sleep 2
+  done
+
+  echo "[entrypoint] 数据库准备完成。"
+fi
+
+exec "$@"

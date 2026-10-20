@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>香港选美大赛 · 投票</title>
+  <meta name="description" content="2026 香港选美大赛官方投票页面，登录后为候选人投出宝贵一票。" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- 页面背景光晕：纯 CSS 装饰，不依赖图片资源 -->
+  <div class="page-glow" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="/">
+      <span class="brand-crown" aria-hidden="true">♛</span>
+      <span class="brand-text">
+        <strong>MISS HONG KONG</strong>
+        <small>香港选美大赛</small>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span id="user-badge" class="user-badge hidden"></span>
+      <button id="logout-btn" class="btn btn-ghost hidden" type="button">退出登录</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- 登录 / 注册 -->
+    <section id="auth-view" class="auth-view">
+      <div class="auth-card">
+        <aside class="auth-aside">
+          <p class="eyebrow">2026 · 年度盛事</p>
+          <h1>为心中的<br /><em>Miss Hong Kong</em><br />投下一票</h1>
+          <p class="aside-desc">
+            浏览候选人资料，用手机号完成验证后即可参与投票。每位市民对同一位候选人仅可投出一票。
+          </p>
+          <ul class="aside-points">
+            <li><span>01</span>手机号验证，一人一票</li>
+            <li><span>02</span>候选人资料实时更新</li>
+            <li><span>03</span>登录状态安全可撤销</li>
+          </ul>
+        </aside>
+
+        <div class="auth-panel">
+          <div class="tabs" role="tablist" aria-label="登录或注册">
+            <button class="tab is-active" data-tab="login" type="button" role="tab" aria-selected="true">登录</button>
+            <button class="tab" data-tab="register" type="button" role="tab" aria-selected="false">注册</button>
+          </div>
+
+          <!-- 登录表单 -->
+          <form id="login-form" class="form" novalidate>
+            <label class="field">
+              <span>手机号 / 用户名</span>
+              <input id="login-account" type="text" autocomplete="username" placeholder="请输入手机号或用户名" required />
+            </label>
+            <label class="field">
+              <span>密码</span>
+              <input id="login-password" type="password" autocomplete="current-password" placeholder="请输入密码" required />
+            </label>
+            <button class="btn btn-primary btn-block" type="submit">登录</button>
+            <p class="form-tip">
+              还没有账号？<button type="button" class="link" data-goto="register">立即注册</button>
+            </p>
+          </form>
+
+          <!-- 注册表单 -->
+          <form id="register-form" class="form hidden" novalidate>
+            <label class="field">
+              <span>用户名</span>
+              <input id="reg-username" type="text" autocomplete="username" placeholder="3-20 位，用于登录" required />
+            </label>
+            <label class="field">
+              <span>手机号</span>
+              <input id="reg-phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel" placeholder="请输入 11 位手机号" required />
+            </label>
+            <label class="field">
+              <span>短信验证码</span>
+              <div class="code-row">
+                <input id="reg-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码" required />
+                <button id="send-code-btn" class="btn btn-outline" type="button">获取验证码</button>
+              </div>
+              <small id="code-hint" class="hint"></small>
+            </label>
+            <label class="field">
+              <span>密码</span>
+              <input id="reg-password" type="password" autocomplete="new-password" placeholder="至少 6 位" required />
+            </label>
+            <label class="field">
+              <span>确认密码</span>
+              <input id="reg-password-confirm" type="password" autocomplete="new-password" placeholder="请再次输入密码" required />
+            </label>
+            <button class="btn btn-primary btn-block" type="submit">注册并登录</button>
+            <p class="form-tip">
+              已有账号？<button type="button" class="link" data-goto="login">返回登录</button>
+            </p>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 候选人列表 -->
+    <section id="list-view" class="list-view hidden">
+      <div class="hero">
+        <p class="eyebrow">2026 香港选美大赛</p>
+        <h1>候选人风采</h1>
+        <p>点击卡片查看候选人详情，为心动佳丽投出一票。</p>
+      </div>
+
+      <div class="toolbar">
+        <div>
+          <h2>候选人</h2>
+          <p id="list-summary" class="muted">正在加载…</p>
+        </div>
+        <button id="refresh-btn" class="btn btn-outline" type="button">刷新列表</button>
+      </div>
+
+      <div id="candidate-grid" class="candidate-grid" aria-live="polite"></div>
+      <div id="empty-state" class="empty hidden">
+        <p>暂无可展示的候选人</p>
+        <small>请确认后台已录入候选人数据</small>
+      </div>
+
+      <nav id="pagination" class="pagination" aria-label="候选人分页"></nav>
+    </section>
+  </main>
+
+  <!-- 候选人详情弹窗 -->
+  <div id="detail-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="detail-name">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-panel">
+      <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
+      <div class="detail-photo" id="detail-photo"></div>
+      <div class="detail-body">
+        <p class="eyebrow">候选人档案</p>
+        <h2 id="detail-name"></h2>
+        <p id="detail-desc" class="detail-desc"></p>
+        <div class="detail-meta">
+          <span id="detail-status" class="status"></span>
+          <button id="detail-vote-btn" class="btn btn-primary" type="button">为她投票</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

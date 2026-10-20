@@ -14,7 +14,7 @@ Rails.application.routes.draw do
       # 登录与登出
       resources :sessions, only: [:create] do
         collection do
-          # 登出：JWT 为无状态令牌，后端无需存储，仅返回成功由前端清除 Token
+          # 登出：删除 Redis 中的 Token 白名单记录，使当前 Token 立即失效
           delete :current, to: "sessions#destroy"
         end
       end

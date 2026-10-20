@@ -1,0 +1,39 @@
+# 一键部署：仅启动应用容器，MySQL 与 Redis 使用外部服务
+# 使用方式：
+#   1. cp .env.example .env 并按实际环境填写
+#   2. docker compose up -d --build
+#   3. 浏览器访问 http://服务器IP:3000
+services:
+  web:
+    build:
+      context: .
+      args:
+        # 国内服务器可改为镜像站地址，例如 docker.m.daocloud.io/library/ruby:3.2.2-slim
+        RUBY_IMAGE: ${RUBY_IMAGE:-ruby:3.2.2-slim}
+    image: hk-beauty-contest-voting:latest
+    container_name: hk-beauty-contest-voting
+    restart: unless-stopped
+    init: true
+    ports:
+      # 宿主机端口可通过 APP_PORT 覆盖
+      - "${APP_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      RAILS_ENV: production
+      RAILS_LOG_TO_STDOUT: "true"
+      PORT: "3000"
+    # 若外部 MySQL / Redis 运行在宿主机上，可在 .env 中使用 host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
