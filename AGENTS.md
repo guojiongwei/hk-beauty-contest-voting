@@ -8,7 +8,7 @@
 
 - 框架：Ruby on Rails 7.1（API 模式）
 - 数据库：MySQL 8.x（本地 3306）
-- 认证：JWT（无状态，Token 由前端保存）
+- 认证：JWT + Redis 白名单（登出即撤销，Token 由前端保存）
 - 接口前缀：`/api/v1`
 
 ## 2. 技术栈与依赖
@@ -20,6 +20,7 @@
 | puma | 应用服务器 |
 | bcrypt | 密码摘要（`has_secure_password`） |
 | jwt | Token 签发与校验 |
+| redis | JWT 白名单，支持登出撤销 |
 | rack-cors | 跨域支持 |
 
 ## 3. 目录约定
@@ -28,7 +29,10 @@
 app/controllers/application_controller.rb     # 全局异常处理
 app/controllers/api/v1/verification_codes_controller.rb # 注册验证码发送
 app/models/verification_code.rb               # 验证码生成、限流与校验
-app/controllers/api/v1/base_controller.rb     # JWT 认证基类
+app/controllers/api/v1/base_controller.rb     # 登录拦截与 current_user
+app/services/token_store.rb                   # JWT 白名单（Redis）
+app/services/json_web_token.rb                # JWT 签发与校验
+lib/middleware/jwt_authentication_middleware.rb # Token 解析、校验与用户信息注入
 app/controllers/api/v1/*.rb                   # 业务控制器
 app/models/*.rb                               # 模型与校验
 config/routes.rb                              # 路由（api/v1 命名空间）
@@ -49,6 +53,7 @@ docs/DESIGN.md                                # 设计思路
 5. 列表接口必须避免 N+1 查询，使用 `pluck`、`includes` 等批量查询方式。
 6. 数据库层必须保留唯一索引与联合唯一索引，应用层校验只作为友好提示，不作为唯一防线。
 7. 不提交任何密钥、真实数据库密码、Token；敏感配置一律走环境变量。
+8. Token 解析与校验统一由 `JwtAuthenticationMiddleware` 完成，控制器只读取 `request.env`，禁止重复解析 JWT。
 
 ## 5. 接口约定
 
@@ -62,6 +67,7 @@ docs/DESIGN.md                                # 设计思路
   - `422` 参数校验失败或重复投票
   - `429` 验证码发送过于频繁
   - `500` 服务端异常
+  - `503` 认证依赖（Redis）不可用
 
 ## 6. Git 提交规范
 
@@ -87,6 +93,9 @@ fix: 修复冒烟测试发现的问题
 ```bash
 # 安装依赖
 bundle install
+
+# 启动 Redis（JWT 白名单依赖，默认 127.0.0.1:6379）
+redis-server
 
 # 创建并迁移数据库（需先在 config/database.yml 或环境变量中配置密码）
 bin/rails db:create db:migrate

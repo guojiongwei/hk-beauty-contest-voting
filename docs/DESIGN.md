@@ -20,6 +20,7 @@
 | MySQL 8 | 关系型数据清晰，唯一索引与事务能力成熟 |
 | JWT | 无状态认证，前后端分离部署简单，服务端无需维护会话表 |
 | bcrypt | Rails 原生 `has_secure_password` 配套，密码只存摘要 |
+| Redis | 保存 JWT 白名单，使 Token 可被服务端主动撤销 |
 | rack-cors | 开发阶段允许跨域，方便前端本地联调 |
 
 ## 3. 数据模型
@@ -131,21 +132,25 @@ add_index :verification_codes, :expires_at
 
 1. 前端提交手机号/用户名 + 密码；
 2. 后端用 `has_secure_password` 的 `authenticate` 校验密码；
-3. 校验通过后签发 JWT，payload 包含 `user_id`、`iat`、`exp`；
+3. 校验通过后签发 JWT，payload 包含 `user_id`、`jti`、`iat`、`exp`，并把 `jti` 写入 Redis 白名单；
 4. 前端保存 Token，后续请求携带 `Authorization: Bearer <token>`；
-5. 后端解析并校验签名与过期时间，通过 `user_id` 还原 `current_user`。
+5. 中间件校验签名、过期时间与 Redis 白名单后，通过 `user_id` 还原 `current_user`。
 
-### 关键实现
+### Token 白名单与中间件
 
-- 签名算法：HS256；
-- 有效期：24 小时；
-- 密钥：优先读取 `ENV["JWT_SECRET"]`，未配置时使用开发环境默认值；
-- `decoded_token` 捕获 `JWT::ExpiredSignature` 与 `JWT::DecodeError`，统一交给 `authenticate_user!` 返回 401；
-- `current_user` 使用 `defined?` 记忆化，单次请求只解析一次 Token、只查一次用户。
+- 登录成功后签发 JWT（HS256，有效期 24 小时），payload 包含 `user_id`、`jti`、`iat`、`exp`；
+- `jti` 是每条 Token 的唯一编号，写入 Redis：键 `jwt:token:<jti>`、值 `user_id`，TTL 与 Token 有效期一致；
+- `JwtAuthenticationMiddleware`（`lib/middleware`）在请求进入控制器之前完成：提取 Bearer Token → 校验签名与过期时间 → 校验 Redis 白名单 → 把 `user_id`、payload、原始 Token 写入 Rack env；
+- 中间件不直接渲染响应，只把失败原因写入 `env["jwt_error"]`，由 `BaseController#authenticate_user!` 统一转成 401/503。这样登录、发送验证码等公开接口即使携带过期 Token 也不会被误拦截；
+- `current_user` 从 `env["current_user_id"]` 读取并记忆化，一次请求只查一次用户。
 
 ### 登出
 
-JWT 是无状态令牌，服务端不维护黑名单。登出接口固定返回 200，由前端删除本地 Token。这样即使 Token 已过期，用户也能正常完成退出流程。
+登出时从 Token payload 取出 `jti` 并删除 Redis 键，该 Token 立即失效；只影响当前 Token，同一账号在其他设备上的登录状态保留。即使 Token 已过期、已撤销或未携带，接口仍固定返回 200，保证前端退出流程不被阻塞。
+
+### Redis 不可用时的行为
+
+Redis 校验失败时既不能放行，也不应伪装成“未登录”：中间件写入 503 状态，接口返回“认证服务暂不可用，请稍后重试”。登录写白名单时的 Redis 异常由 `ApplicationController` 的 `rescue_from Redis::BaseError` 统一兜底为 503。
 
 ## 5. 投票与防刷票
 
@@ -213,6 +218,7 @@ candidate.has_voted = voted_ids.include?(candidate.id)
 | `ActiveRecord::RecordInvalid` | 422 | 第一条模型校验错误 |
 | `ActiveRecord::RecordNotUnique` | 422 | `{ "error": "数据已存在，请勿重复提交" }` |
 | `ActionController::ParameterMissing` | 400 | `{ "error": "缺少必要参数：xxx" }` |
+| `Redis::BaseError` | 503 | `{ "error": "认证服务暂不可用，请稍后重试" }` |
 | `StandardError` | 500 | `{ "error": "服务器内部错误，请稍后重试" }` |
 
 说明：
@@ -231,13 +237,16 @@ candidate.has_voted = voted_ids.include?(candidate.id)
 5. 投票人身份取自 Token，不信任客户端传入的 `user_id`；
 6. 手机号、用户名在数据库层唯一，防止重复注册；
 7. 验证码只存 bcrypt 摘要，接口响应默认不回显明文（仅开发环境返回 `debug_code` 便于联调）；
-8. 验证码 5 分钟过期、60 秒发送间隔、最多错 5 次、一次性消费，限制短信轰炸与暴力枚举。
+8. 验证码 5 分钟过期、60 秒发送间隔、最多错 5 次、一次性消费，限制短信轰炸与暴力枚举；
+9. JWT 的 `jti` 写入 Redis 白名单，登出或后台封禁时删除键即可让 Token 立即失效；
+10. 白名单按 Token 粒度存储，登出不会影响同一账号在其他设备上的登录状态。
 
 ## 9. 后续可扩展方向
 
 - 验证码表按月归档，并增加定时任务清理过期记录；
-- 引入 Redis 做登录限流与投票频控，并缓存候选人列表；
+- 在 Redis 中增加登录限流与投票频控键，并缓存候选人列表；
 - 接入真实短信服务商，并增加图形验证码或人机校验作为发送前置条件；
 - 投票结果统计接口使用计数器缓存或异步汇总，避免实时聚合压力；
-- 如需强制单设备登录，可引入 Token 版本号或黑名单机制；
+- 如需强制单设备登录，可在登录时删除该用户的其他 `jti`，只保留最新一条；
+- 多实例部署时 Redis 天然共享白名单，无需额外的会话同步机制。
 - 数据量增长后把候选人列表改为游标分页。

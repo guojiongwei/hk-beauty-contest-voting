@@ -4,6 +4,25 @@
 - 接口前缀：`/api/v1`
 - 数据格式：`application/json`
 - 认证方式：JWT，请求头格式为 `Authorization: Bearer <token>`
+- Token 存储：签发后把 `jti` 写入 Redis 白名单，登出即撤销
+
+## 认证与 Token 校验
+
+1. 登录成功后签发 JWT（HS256，有效期 24 小时），payload 包含 `user_id`、`jti`、`iat`、`exp`；
+2. 服务端把 `jti` 写入 Redis，键为 `jwt:token:<jti>`，值为 `user_id`，TTL 与 Token 有效期一致；
+3. 前端后续请求携带 `Authorization: Bearer <token>`；
+4. `JwtAuthenticationMiddleware` 在进入控制器前完成三件事：校验签名与过期时间、校验 Redis 白名单、把 `user_id` 写入请求上下文；
+5. 登出时删除对应 `jti`，Token 立即失效；同一账号在其他设备登录的 Token 不受影响。
+
+校验失败时的响应：
+
+| 场景 | 状态码 | 响应 |
+| --- | --- | --- |
+| 未携带 Token | 401 | `{ "error": "请先登录或登录状态已过期" }` |
+| 签名非法 / 格式错误 | 401 | `{ "error": "登录凭证无效" }` |
+| Token 已过期 | 401 | `{ "error": "登录状态已过期，请重新登录" }` |
+| Token 已登出/已撤销 | 401 | `{ "error": "登录状态已失效，请重新登录" }` |
+| Redis 不可用 | 503 | `{ "error": "认证服务暂不可用，请稍后重试" }` |
 
 ## 通用错误响应
 
@@ -15,6 +34,7 @@
 | 422 | 参数校验失败 | `{ "error": "手机号格式不正确" }` |
 | 429 | 请求过于频繁 | `{ "error": "验证码发送过于频繁，请稍后再试" }` |
 | 500 | 服务端异常 | `{ "error": "服务器内部错误，请稍后重试" }` |
+| 503 | 认证依赖（Redis）不可用 | `{ "error": "认证服务暂不可用，请稍后重试" }` |
 
 ---
 
@@ -236,6 +256,8 @@ POST /api/v1/sessions
 
 ### 说明
 - Token 有效期 24 小时，前端需自行保存并在后续请求的 `Authorization` 头中携带。
+- 登录成功时服务端会为该 Token 生成唯一 `jti` 并写入 Redis 白名单，TTL 与 Token 有效期一致。
+- 同一账号多次登录会得到多条互不影响的 Token，登出只撤销当前这一条。
 - 登录失败不区分“账号不存在”和“密码错误”，避免账号枚举。
 
 ---
@@ -246,10 +268,10 @@ POST /api/v1/sessions
 DELETE /api/v1/sessions/current
 
 ### 认证
-不需要（即使 Token 已过期也允许调用）
+携带有效 Token 时会撤销该 Token；Token 已过期时仍允许调用
 
 ### Request 示例
-无请求体，可携带当前 Token：
+无请求体，必须携带当前 Token：
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
@@ -264,8 +286,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
 ### 说明
-- JWT 为无状态令牌，后端不保存会话，登出由前端删除本地 Token 完成。
-- 后端固定返回 200，保证前端退出流程不被 Token 状态阻塞。
+- 后端从 Token 的 `jti` 定位 Redis 白名单记录并删除，该 Token 立即失效。
+- 只撤销当前 Token，同一账号在其他设备上的登录状态不受影响。
+- 即使 Token 已过期、已登出或未携带，也固定返回 200，保证前端退出流程不被阻塞。
 
 ---
 
