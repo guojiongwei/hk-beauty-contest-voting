@@ -45,16 +45,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 背景光晕：用径向渐变模拟舞台灯光 */
+/* 背景光晕：用径向渐变模拟柔和的舞台光，浅色系下更轻盈 */
 .page-glow {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(680px 420px at 12% -8%, rgba(216, 180, 106, 0.22), transparent 62%),
-    radial-gradient(760px 520px at 92% 6%, rgba(120, 86, 160, 0.18), transparent 65%),
-    radial-gradient(900px 620px at 50% 110%, rgba(216, 180, 106, 0.1), transparent 70%),
-    linear-gradient(180deg, #08080c 0%, #0a0a11 55%, #07070b 100%);
+    radial-gradient(680px 420px at 12% -8%, rgba(215, 202, 230, 0.95), transparent 62%),
+    radial-gradient(760px 520px at 92% 6%, rgba(198, 178, 226, 0.55), transparent 65%),
+    radial-gradient(900px 620px at 50% 110%, rgba(215, 202, 230, 0.6), transparent 70%),
+    linear-gradient(180deg, #fdfbff 0%, #f6f1fb 55%, #efe8f7 100%);
 }
 
 .hidden {
@@ -72,8 +72,8 @@ body {
   justify-content: space-between;
   gap: 18px;
   padding: 18px clamp(20px, 5vw, 56px);
-  background: rgba(8, 8, 12, 0.72);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(102, 82, 140, 0.12);
   backdrop-filter: blur(18px);
 }
 
@@ -91,10 +91,10 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(216, 180, 106, 0.55);
-  color: var(--gold);
+  border: 1px solid rgba(111, 88, 165, 0.45);
+  color: var(--accent);
   font-size: 18px;
-  background: rgba(216, 180, 106, 0.08);
+  background: var(--lavender);
 }
 
 .brand-text {
@@ -130,7 +130,7 @@ body {
   padding: 7px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  color: var(--gold-light);
+  color: var(--accent);
   font-size: 13px;
   background: var(--panel);
 }
@@ -164,23 +164,24 @@ body {
 }
 
 .btn-primary {
-  color: #191307;
-  background: linear-gradient(135deg, #f0d9a6, #d8b46a 60%, #c39a4e);
-  box-shadow: 0 14px 34px rgba(216, 180, 106, 0.22);
+  /* 浅色主题下按钮使用薰衣草渐变，文字改为深紫以保证对比度 */
+  color: #2a1f3d;
+  background: linear-gradient(135deg, #e6dcf3, #c9b5e6 60%, #b39ad9);
+  box-shadow: 0 14px 34px rgba(111, 88, 165, 0.22);
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.06);
+  filter: brightness(1.03);
 }
 
 .btn-outline {
-  color: var(--gold-light);
-  border-color: rgba(216, 180, 106, 0.45);
-  background: rgba(216, 180, 106, 0.06);
+  color: var(--accent);
+  border-color: rgba(111, 88, 165, 0.4);
+  background: rgba(215, 202, 230, 0.35);
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: rgba(216, 180, 106, 0.14);
+  background: rgba(215, 202, 230, 0.7);
 }
 
 .btn-ghost {
@@ -191,7 +192,7 @@ body {
 
 .btn-ghost:hover:not(:disabled) {
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(111, 88, 165, 0.35);
 }
 
 .btn-block {
@@ -203,7 +204,7 @@ body {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--gold-light);
+  color: var(--accent);
   font: inherit;
   cursor: pointer;
   text-decoration: underline;
@@ -232,7 +233,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: rgba(14, 14, 20, 0.82);
+  background: rgba(255, 255, 255, 0.85);
   box-shadow: var(--shadow);
 }
 
@@ -243,10 +244,11 @@ body {
   justify-content: center;
   gap: 22px;
   padding: clamp(30px, 5vw, 56px);
+  /* 左侧品牌区以 #D7CAE6 为主色做柔和渐变 */
   background:
-    radial-gradient(520px 360px at 85% 8%, rgba(216, 180, 106, 0.28), transparent 65%),
-    radial-gradient(420px 320px at 0% 100%, rgba(118, 84, 160, 0.22), transparent 70%),
-    linear-gradient(150deg, #191420 0%, #0d0c12 60%, #0a0a0f 100%);
+    radial-gradient(520px 360px at 85% 8%, rgba(255, 255, 255, 0.85), transparent 65%),
+    radial-gradient(420px 320px at 0% 100%, rgba(176, 150, 214, 0.35), transparent 70%),
+    linear-gradient(150deg, #efe8f8 0%, #d7cae6 60%, #cbb9e2 100%);
 }
 
 /* 左侧装饰竖线 */
@@ -257,12 +259,12 @@ body {
   right: 0;
   width: 1px;
   height: 76%;
-  background: linear-gradient(180deg, transparent, rgba(216, 180, 106, 0.5), transparent);
+  background: linear-gradient(180deg, transparent, rgba(111, 88, 165, 0.35), transparent);
 }
 
 .eyebrow {
   margin: 0;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.34em;
   text-transform: uppercase;
@@ -277,7 +279,7 @@ body {
 }
 
 .auth-aside h1 em {
-  color: var(--gold-light);
+  color: var(--accent);
   font-style: italic;
 }
 
@@ -301,12 +303,12 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #d8d2c6;
+  color: #4b4260;
   font-size: 13px;
 }
 
 .aside-points span {
-  color: var(--gold);
+  color: var(--accent);
   font-family: var(--font-serif);
   font-size: 12px;
   letter-spacing: 0.1em;
@@ -318,7 +320,7 @@ body {
   justify-content: center;
   gap: 24px;
   padding: clamp(30px, 5vw, 54px);
-  background: rgba(10, 10, 15, 0.6);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .tabs {
@@ -327,7 +329,7 @@ body {
   padding: 5px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(215, 202, 230, 0.32);
 }
 
 .tab {
@@ -345,8 +347,8 @@ body {
 }
 
 .tab.is-active {
-  color: #1a1408;
-  background: linear-gradient(135deg, #f0d9a6, #d8b46a);
+  color: #2a1f3d;
+  background: linear-gradient(135deg, #e6dcf3, #c9b5e6);
   font-weight: 600;
 }
 
@@ -370,7 +372,7 @@ body {
   padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(255, 255, 255, 0.88);
   color: var(--text);
   font-family: inherit;
   font-size: 14px;
@@ -379,12 +381,12 @@ body {
 }
 
 .field input::placeholder {
-  color: #6d6860;
+  color: #9c93ae;
 }
 
 .field input:focus {
-  border-color: rgba(216, 180, 106, 0.6);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(111, 88, 165, 0.55);
+  background: #ffffff;
 }
 
 .code-row {
@@ -404,7 +406,7 @@ body {
 
 .hint {
   min-height: 16px;
-  color: var(--gold);
+  color: var(--accent);
   font-size: 12px;
 }
 
@@ -419,7 +421,7 @@ body {
 
 .hero {
   padding: 18px 0 34px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(102, 82, 140, 0.12);
 }
 
 .hero h1 {
@@ -469,15 +471,15 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: rgba(16, 16, 23, 0.78);
+  background: rgba(255, 255, 255, 0.88);
   cursor: pointer;
   transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
 }
 
 .candidate-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(216, 180, 106, 0.42);
-  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.45);
+  border-color: rgba(111, 88, 165, 0.42);
+  box-shadow: 0 22px 46px rgba(76, 56, 112, 0.18);
 }
 
 .candidate-photo {
@@ -485,8 +487,8 @@ body {
   aspect-ratio: 3 / 4;
   overflow: hidden;
   background:
-    radial-gradient(420px 280px at 50% 0%, rgba(216, 180, 106, 0.2), transparent 70%),
-    linear-gradient(160deg, #211a2b, #111018);
+    radial-gradient(420px 280px at 50% 0%, rgba(255, 255, 255, 0.75), transparent 70%),
+    linear-gradient(160deg, #e7dcf3, #d7cae6);
 }
 
 .candidate-photo img {
@@ -501,7 +503,7 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  color: rgba(242, 221, 176, 0.72);
+  color: rgba(111, 88, 165, 0.55);
   font-family: var(--font-serif);
   font-size: 54px;
 }
@@ -553,8 +555,8 @@ body {
 
 .status.is-voted {
   color: var(--success);
-  border-color: rgba(124, 198, 161, 0.4);
-  background: rgba(124, 198, 161, 0.08);
+  border-color: rgba(63, 125, 95, 0.35);
+  background: rgba(63, 125, 95, 0.1);
 }
 
 .btn-vote {
@@ -594,7 +596,7 @@ body {
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--muted);
   font-family: inherit;
   font-size: 13px;
@@ -604,13 +606,13 @@ body {
 
 .page-btn:hover:not(:disabled) {
   color: var(--text);
-  border-color: rgba(216, 180, 106, 0.4);
+  border-color: rgba(111, 88, 165, 0.4);
 }
 
 .page-btn.is-active {
-  color: #1a1408;
+  color: #2a1f3d;
   border-color: transparent;
-  background: linear-gradient(135deg, #f0d9a6, #d8b46a);
+  background: linear-gradient(135deg, #e6dcf3, #c9b5e6);
   font-weight: 600;
 }
 
@@ -639,7 +641,8 @@ body {
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(4, 4, 8, 0.74);
+  /* 浅色主题下遮罩改用半透明深紫，避免生硬的纯黑 */
+  background: rgba(44, 35, 64, 0.38);
   backdrop-filter: blur(6px);
 }
 
@@ -652,7 +655,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: #111118;
+  background: #fdfbff;
   box-shadow: var(--shadow);
   animation: modal-in 0.24s ease;
 }
@@ -677,7 +680,7 @@ body {
   height: 34px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.86);
   color: var(--text);
   font-size: 20px;
   line-height: 1;
@@ -688,8 +691,8 @@ body {
   position: relative;
   min-height: 320px;
   background:
-    radial-gradient(420px 320px at 50% 0%, rgba(216, 180, 106, 0.24), transparent 70%),
-    linear-gradient(160deg, #241c2e, #0e0d13);
+    radial-gradient(420px 320px at 50% 0%, rgba(255, 255, 255, 0.8), transparent 70%),
+    linear-gradient(160deg, #e9dff4, #d7cae6);
 }
 
 .detail-photo img {
@@ -728,7 +731,7 @@ body {
   gap: 16px;
   margin-top: auto;
   padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(102, 82, 140, 0.14);
 }
 
 /* ------------------------------ 轻提示 ------------------------------ */
@@ -742,10 +745,10 @@ body {
   padding: 13px 22px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(20, 20, 28, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   color: var(--text);
   font-size: 13px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 40px rgba(76, 56, 112, 0.2);
   opacity: 0;
   transform: translate(-50%, 12px);
   pointer-events: none;
@@ -758,13 +761,13 @@ body {
 }
 
 .toast.is-success {
-  border-color: rgba(124, 198, 161, 0.4);
-  color: #cdeedd;
+  border-color: rgba(63, 125, 95, 0.35);
+  color: #2f6b4f;
 }
 
 .toast.is-error {
-  border-color: rgba(224, 122, 122, 0.42);
-  color: #f3c9c9;
+  border-color: rgba(194, 85, 95, 0.38);
+  color: #a83b46;
 }
 
 /* ------------------------------ 响应式 ------------------------------ */
