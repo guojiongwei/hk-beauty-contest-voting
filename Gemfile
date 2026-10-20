@@ -33,6 +33,9 @@ gem "bootsnap", require: false
 # 跨域支持：允许前端在开发阶段直接调用本 API
 gem "rack-cors"
 
+# Redis：保存 JWT 白名单，使 Token 可以被服务端主动撤销
+gem "redis", "~> 5.0"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ]
